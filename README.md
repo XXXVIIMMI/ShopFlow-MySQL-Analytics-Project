@@ -24,6 +24,10 @@ shopflow_mysql/
 `-- README.md
 ```
 
+
+https://github.com/user-attachments/assets/f24d19a9-5cb4-4872-bc74-e86c5f4ca1c3
+
+
 ## What This Project Includes
 
 - Seeded synthetic data from 2022 through 2026
@@ -131,3 +135,9 @@ pkill -f "uvicorn main:app"
 
 - `seed.py` and `main.py` both load `.env` automatically.
 - Demo data is available in `dashboard.html` if API is offline.
+
+## Result
+
+https://github.com/user-attachments/assets/7d431db5-e0d3-439b-aff0-0e26c1a08e47
+
+
