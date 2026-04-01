@@ -24,10 +24,6 @@ shopflow_mysql/
 `-- README.md
 ```
 
-
-https://github.com/user-attachments/assets/f24d19a9-5cb4-4872-bc74-e86c5f4ca1c3
-
-
 ## What This Project Includes
 
 - Seeded synthetic data from 2022 through 2026
