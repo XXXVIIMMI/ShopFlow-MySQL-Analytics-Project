@@ -1,0 +1,1208 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopFlow Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2026;
+    --border: rgba(255,255,255,0.08);
+    --text: #e8eaf0;
+    --muted: #6b7080;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffa94d;
+    --accent5: #74c0fc;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* Layout */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0;
+  }
+  .logo {
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .logo-text {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+  .logo-text span { color: var(--accent); }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .nav-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; padding: 0 20px 8px; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+  .nav-item.active { color: var(--text); background: rgba(108,99,255,0.12); border-left-color: var(--accent); }
+  .nav-icon { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
+
+  /* Main */
+  .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  /* Topbar */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .page-title { font-size: 16px; font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .year-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+  }
+  .year-select:focus { outline: none; border-color: var(--accent); }
+
+  .status-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--accent2);
+    background: rgba(0,212,170,0.1);
+    padding: 5px 10px; border-radius: 20px;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  /* Content */
+  .content { padding: 28px; flex: 1; }
+
+  /* KPI cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover { border-color: rgba(255,255,255,0.15); }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .kpi-card:nth-child(1)::before { background: var(--accent); }
+  .kpi-card:nth-child(2)::before { background: var(--accent2); }
+  .kpi-card:nth-child(3)::before { background: var(--accent4); }
+  .kpi-card:nth-child(4)::before { background: var(--accent3); }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+  .kpi-value { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; font-family: 'JetBrains Mono', monospace; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* Charts row */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .chart-title {
+    font-size: 13px; font-weight: 500; margin-bottom: 4px;
+  }
+  .chart-sub { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .chart-wrap { position: relative; }
+
+  /* Bottom row */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* Table */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    overflow: hidden;
+  }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; padding: 8px 0;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+  }
+  .badge-blue { background: rgba(108,99,255,0.2); color: #a5a0ff; }
+  .badge-green { background: rgba(0,212,170,0.15); color: #00d4aa; }
+  .badge-amber { background: rgba(255,169,77,0.15); color: var(--accent4); }
+  .badge-red { background: rgba(255,107,107,0.15); color: var(--accent3); }
+
+  /* Funnel */
+  .funnel-bar {
+    margin-bottom: 14px;
+  }
+  .funnel-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+  .funnel-label { font-size: 12px; color: var(--text); }
+  .funnel-pct { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+  .funnel-track {
+    height: 6px; background: rgba(255,255,255,0.06);
+    border-radius: 3px; overflow: hidden;
+  }
+  .funnel-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+  /* Loading / Error */
+  .loading-state {
+    display: flex; align-items: center; justify-content: center;
+    height: 120px; color: var(--muted); font-size: 13px; gap: 8px;
+  }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Cohort heatmap */
+  .cohort-table { font-size: 11px; }
+  .cohort-table th, .cohort-table td {
+    padding: 5px 8px; text-align: center; min-width: 38px;
+  }
+  .cohort-table th:first-child, .cohort-table td:first-child {
+    text-align: left; min-width: 70px; font-family: 'JetBrains Mono', monospace;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .section-title {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 16px; margin-top: 28px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .conn-banner {
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #ff9999;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .conn-banner.show { display: block; }
+  .conn-success {
+    background: rgba(0,212,170,0.1);
+    border: 1px solid rgba(0,212,170,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--accent2);
+    margin-bottom: 20px;
+    display: none;
+  }
+  .conn-success.show { display: block; }
+
+  .url-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .url-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px; border-radius: 8px;
+    font-size: 13px; font-family: 'JetBrains Mono', monospace;
+  }
+  .url-input:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    background: var(--accent); color: #fff;
+    border: none; padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; cursor: pointer; font-family: var(--font);
+    font-weight: 500; transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-outline {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); padding: 7px 14px; border-radius: 8px;
+    font-size: 13px; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s;
+  }
+  .btn-outline:hover { background: rgba(255,255,255,0.06); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  /* Responsive tweaks */
+  @media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .bottom-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-text">Shop<span>Flow</span></div>
+      <div class="logo-sub">Analytics Dashboard</div>
+    </div>
+
+    <div class="nav-label">Overview</div>
+    <div class="nav-item active" data-page="overview">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
+        <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+      </svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-page="revenue">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="1,12 5,7 8,9 12,4 15,6"/>
+        <line x1="1" y1="15" x2="15" y2="15"/>
+      </svg>
+      Revenue
+    </div>
+
+    <div class="nav-label">Products & Customers</div>
+    <div class="nav-item" data-page="products">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/>
+        <rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>
+      </svg>
+      Products
+    </div>
+    <div class="nav-item" data-page="customers">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2-5 5-5s5 2 5 5"/>
+        <circle cx="12" cy="4" r="2"/><path d="M14 14c0-2-1-3.5-2-4"/>
+      </svg>
+      Customers
+    </div>
+    <div class="nav-item" data-page="funnel">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M2 3h12l-4 5v5l-4-2V8L2 3z"/>
+      </svg>
+      Funnel
+    </div>
+    <div class="nav-item" data-page="cohort">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="1" y="3" width="14" height="10" rx="1"/>
+        <line x1="1" y1="7" x2="15" y2="7"/>
+        <line x1="5" y1="3" x2="5" y2="13"/>
+        <line x1="10" y1="3" x2="10" y2="13"/>
+      </svg>
+      Cohort
+    </div>
+
+    <div class="nav-label" style="margin-top: auto;">Settings</div>
+    <div class="nav-item" data-page="settings">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="8" r="2"/>
+        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/>
+      </svg>
+      Settings
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-right">
+        <select class="year-select" id="yearSelect">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
+        </select>
+        <div class="status-badge" id="statusBadge">
+          <div class="status-dot"></div>
+          <span id="statusText">Connecting…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- OVERVIEW PAGE -->
+      <div class="page active" id="page-overview">
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="loading-state" style="grid-column: 1/-1">
+            <div class="spinner"></div> Loading KPIs…
+          </div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Monthly Revenue</div>
+            <div class="chart-sub">Current vs previous year</div>
+            <div class="chart-wrap" style="height: 240px;">
+              <canvas id="revenueChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Order Status</div>
+            <div class="chart-sub">Breakdown by status</div>
+            <div class="chart-wrap" style="height: 200px; margin-top: 20px;">
+              <canvas id="statusChart"></canvas>
+            </div>
+            <div id="statusLegend" style="margin-top:12px; font-size:11px;"></div>
+          </div>
+        </div>
+        <div class="charts-row" style="grid-template-columns: 1fr 1fr;">
+          <div class="chart-card">
+            <div class="chart-title">Revenue by Category</div>
+            <div class="chart-sub">Net revenue per category</div>
+            <div class="chart-wrap" id="catWrap" style="height: 200px;">
+              <canvas id="catChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Conversion Funnel</div>
+            <div class="chart-sub">View → Cart → Purchase</div>
+            <div id="funnelMini" style="margin-top: 8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REVENUE PAGE -->
+      <div class="page" id="page-revenue">
+        <div class="section-title">Monthly Revenue Detail</div>
+        <div class="chart-card" style="margin-bottom: 20px;">
+          <div class="chart-title">Revenue &amp; YoY Growth</div>
+          <div class="chart-sub">Month-by-month comparison with growth rate</div>
+          <div class="chart-wrap" style="height: 280px;"><canvas id="revDetailChart"></canvas></div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div>
+              <div class="chart-title">Monthly Breakdown</div>
+              <div class="chart-sub">All months with YoY comparison</div>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table id="revTable">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Revenue</th>
+                  <th>Prev Year</th>
+                  <th>YoY Growth</th>
+                </tr>
+              </thead>
+              <tbody id="revTableBody">
+                <tr><td colspan="4" style="text-align:center; color: var(--muted); padding: 20px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCTS PAGE -->
+      <div class="page" id="page-products">
+        <div class="section-title">Top Products</div>
+        <div class="charts-row" style="grid-template-columns: 1fr 1.4fr; margin-bottom: 20px;">
+          <div class="chart-card">
+            <div class="chart-title">By Net Revenue</div>
+            <div class="chart-sub">Top 8 products</div>
+            <div class="chart-wrap" id="prodWrap" style="height:260px;"><canvas id="prodChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Revenue vs Margin %</div>
+            <div class="chart-sub">Bubble = units sold</div>
+            <div class="chart-wrap" style="height:260px;"><canvas id="bubbleChart"></canvas></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div>
+              <div class="chart-title">Product Leaderboard</div>
+              <div class="chart-sub">Top 15 products by revenue</div>
+            </div>
+            <select class="year-select" id="prodCatFilter" style="font-size:12px;">
+              <option value="">All categories</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Product</th><th>Category</th><th>Units</th><th>Revenue</th><th>Margin</th></tr>
+              </thead>
+              <tbody id="prodTableBody">
+                <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CUSTOMERS PAGE -->
+      <div class="page" id="page-customers">
+        <div class="section-title">Customer Lifetime Value</div>
+        <div class="charts-row" style="grid-template-columns: 1.5fr 1fr; margin-bottom: 20px;">
+          <div class="chart-card">
+            <div class="chart-title">Top Customers by LTV</div>
+            <div class="chart-sub">Lifetime spend ranking</div>
+            <div class="chart-wrap" id="ltvWrap" style="height:280px;"><canvas id="ltvChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Segment Distribution</div>
+            <div class="chart-sub">Revenue by customer segment</div>
+            <div class="chart-wrap" style="height:220px; margin-top:20px;"><canvas id="segChart"></canvas></div>
+            <div id="segLegend" style="margin-top:12px; font-size:11px;"></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div>
+              <div class="chart-title">Customer List</div>
+              <div class="chart-sub">Ranked by lifetime value</div>
+            </div>
+            <select class="year-select" id="segFilter" style="font-size:12px;">
+              <option value="">All segments</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr><th>Customer</th><th>Segment</th><th>Country</th><th>Orders</th><th>LTV</th><th>Last Order</th></tr>
+              </thead>
+              <tbody id="custTableBody">
+                <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FUNNEL PAGE -->
+      <div class="page" id="page-funnel">
+        <div class="section-title">Conversion Funnel by Category</div>
+        <div class="charts-row" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
+          <div class="chart-card">
+            <div class="chart-title">View → Cart conversion</div>
+            <div class="chart-sub">% of views that add to cart</div>
+            <div class="chart-wrap" id="funnelChart1Wrap" style="height:240px;"><canvas id="funnelChart1"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Cart → Purchase conversion</div>
+            <div class="chart-sub">% of carts that purchase</div>
+            <div class="chart-wrap" id="funnelChart2Wrap" style="height:240px;"><canvas id="funnelChart2"></canvas></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div>
+              <div class="chart-title">Full Funnel Breakdown</div>
+              <div class="chart-sub">Views, carts, and purchases per category</div>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr><th>Category</th><th>Views</th><th>Add to Cart</th><th>Purchases</th><th>View→Cart</th><th>Cart→Purchase</th></tr>
+              </thead>
+              <tbody id="funnelTableBody">
+                <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- COHORT PAGE -->
+      <div class="page" id="page-cohort">
+        <div class="section-title">Cohort Retention Heatmap</div>
+        <div class="table-card">
+          <div class="chart-title" style="margin-bottom: 4px;">Monthly Cohort Retention</div>
+          <div class="chart-sub" style="margin-bottom: 20px;">% of customers still active N months after first order</div>
+          <div style="overflow-x: auto;" id="cohortWrap">
+            <div class="loading-state"><div class="spinner"></div> Loading cohort data…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="section-title">API Connection</div>
+        <div class="table-card">
+          <div class="chart-title" style="margin-bottom: 4px;">Backend URL</div>
+          <div class="chart-sub" style="margin-bottom: 16px;">
+            Connect to your ShopFlow FastAPI server. Run <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px;">uvicorn main:app --reload</code> to start.
+          </div>
+          <div class="url-row">
+            <input type="text" class="url-input" id="baseUrlInput" value="http://localhost:8000" placeholder="http://localhost:8000" />
+            <button class="btn" onclick="applyUrl()">Connect</button>
+            <button class="btn-outline" onclick="testDemo()">Use Demo Data</button>
+          </div>
+          <div class="conn-banner" id="connBanner"></div>
+          <div class="conn-success" id="connSuccess"></div>
+          <div style="font-size: 12px; color: var(--muted); line-height: 1.7;">
+            <strong style="color: var(--text);">Available endpoints:</strong><br>
+            GET /kpis · /revenue/monthly · /revenue/by-category · /products/top · /customers/ltv · /orders/status · /customers/cohort-retention · /funnel/by-category
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let BASE = 'http://localhost:8000';
+let currentYear = 2026;
+let charts = {};
+let demoMode = false;
+
+const DEMO = {
+  kpis: { total_revenue: 1842300.50, total_orders: 2387, avg_order_value: 771.88, cancellation_rate_pct: 6.8 },
+  monthly: [
+    {month:'2024-01',revenue:128400,prev_revenue:110200,yoy_growth_pct:16.5},
+    {month:'2024-02',revenue:142000,prev_revenue:121000,yoy_growth_pct:17.4},
+    {month:'2024-03',revenue:165200,prev_revenue:138000,yoy_growth_pct:19.7},
+    {month:'2024-04',revenue:158700,prev_revenue:145000,yoy_growth_pct:9.4},
+    {month:'2024-05',revenue:171300,prev_revenue:154000,yoy_growth_pct:11.2},
+    {month:'2024-06',revenue:183500,prev_revenue:162000,yoy_growth_pct:13.3},
+    {month:'2024-07',revenue:176800,prev_revenue:168000,yoy_growth_pct:5.2},
+    {month:'2024-08',revenue:191200,prev_revenue:172000,yoy_growth_pct:11.2},
+    {month:'2024-09',revenue:168400,prev_revenue:156000,yoy_growth_pct:7.9},
+    {month:'2024-10',revenue:195300,prev_revenue:174000,yoy_growth_pct:12.2},
+    {month:'2024-11',revenue:212100,prev_revenue:188000,yoy_growth_pct:12.8},
+    {month:'2024-12',revenue:149400,prev_revenue:142000,yoy_growth_pct:5.2},
+  ],
+  categories: [
+    {category:'Electronics',net_revenue:541200,units_sold:3240},
+    {category:'Clothing',net_revenue:387400,units_sold:8100},
+    {category:'Home & Garden',net_revenue:298700,units_sold:4200},
+    {category:'Books',net_revenue:187300,units_sold:12400},
+    {category:'Sports',net_revenue:241900,units_sold:3800},
+    {category:'Beauty',net_revenue:185700,units_sold:5600},
+  ],
+  products: [
+    {name:'UltraBook Pro 15',category:'Electronics',units_sold:312,net_revenue:281400,margin_pct:34.2},
+    {name:'Wireless Earbuds X',category:'Electronics',units_sold:891,net_revenue:124800,margin_pct:48.1},
+    {name:'Smart Watch Series 4',category:'Electronics',units_sold:445,net_revenue:98700,margin_pct:41.3},
+    {name:'Running Shoes Elite',category:'Sports',units_sold:678,net_revenue:87400,margin_pct:52.8},
+    {name:'Yoga Mat Premium',category:'Sports',units_sold:1203,net_revenue:72100,margin_pct:61.4},
+    {name:'Linen Shirt Classic',category:'Clothing',units_sold:2104,net_revenue:68200,margin_pct:58.2},
+    {name:'Garden Tool Set',category:'Home & Garden',units_sold:534,net_revenue:61800,margin_pct:44.7},
+    {name:'Python Cookbook',category:'Books',units_sold:3241,net_revenue:58900,margin_pct:71.2},
+    {name:'Face Serum Gold',category:'Beauty',units_sold:891,net_revenue:54300,margin_pct:67.9},
+    {name:'Denim Jacket Slim',category:'Clothing',units_sold:723,net_revenue:51700,margin_pct:53.4},
+    {name:'Coffee Maker Pro',category:'Home & Garden',units_sold:312,net_revenue:48200,margin_pct:38.1},
+    {name:'Novel: The Last Hour',category:'Books',units_sold:2891,net_revenue:45600,margin_pct:74.3},
+    {name:'Sunscreen SPF50',category:'Beauty',units_sold:1892,net_revenue:41200,margin_pct:69.8},
+    {name:'4K Monitor 27"',category:'Electronics',units_sold:201,net_revenue:38900,margin_pct:29.4},
+    {name:'Hiking Backpack 40L',category:'Sports',units_sold:445,net_revenue:37800,margin_pct:47.2},
+  ],
+  customers: [
+    {name:'Aabid Hasan',segment:'VIP',country:'BD',total_orders:18,lifetime_value:18420,avg_order_value:1023,days_since_last_order:12},
+    {name:'Sajib Khan',segment:'VIP',country:'BD',total_orders:15,lifetime_value:15810,avg_order_value:1054,days_since_last_order:28},
+    {name:'Zahidul Islam',segment:'High Value',country:'BD',total_orders:12,lifetime_value:12340,avg_order_value:1028,days_since_last_order:45},
+    {name:'Tom Becker',segment:'High Value',country:'DE',total_orders:14,lifetime_value:11200,avg_order_value:800,days_since_last_order:7},
+    {name:'Nazirul Islam Ifran',segment:'Regular',country:'BD',total_orders:9,lifetime_value:7820,avg_order_value:869,days_since_last_order:62},
+    {name:'Maidul Islam Murad',segment:'VIP',country:'BD',total_orders:11,lifetime_value:9840,avg_order_value:895,days_since_last_order:33},
+    {name:'Elena Petrov',segment:'Regular',country:'RU',total_orders:7,lifetime_value:5980,avg_order_value:854,days_since_last_order:80},
+    {name:'Azahr Uddin',segment:'High Value',country:'BD',total_orders:10,lifetime_value:8670,avg_order_value:867,days_since_last_order:15},
+    {name:'Sheikh Pranto',segment:'Regular',country:'BD',total_orders:8,lifetime_value:6240,avg_order_value:780,days_since_last_order:95},
+    {name:'Hana Kimura',segment:'Regular',country:'JP',total_orders:8,lifetime_value:6240,avg_order_value:780,days_since_last_order:95},
+    {name:'Luca Ferrari',segment:'Regular',country:'IT',total_orders:6,lifetime_value:4980,avg_order_value:830,days_since_last_order:120},
+  ],
+  orders: [
+    {status:'delivered',order_count:1980,total_value:1842300,pct_of_orders:83.0},
+    {status:'shipped',order_count:192,total_value:187400,pct_of_orders:8.0},
+    {status:'pending',order_count:52,total_value:48200,pct_of_orders:2.2},
+    {status:'cancelled',order_count:163,total_value:143200,pct_of_orders:6.8},
+  ],
+  funnel: [
+    {category:'Electronics',views:8420,add_to_cart:2180,purchases:986,view_to_cart_pct:25.9,cart_to_purchase_pct:45.2},
+    {category:'Clothing',views:12300,add_to_cart:4100,purchases:1640,view_to_cart_pct:33.3,cart_to_purchase_pct:40.0},
+    {category:'Home & Garden',views:6100,add_to_cart:1520,purchases:609,view_to_cart_pct:24.9,cart_to_purchase_pct:40.1},
+    {category:'Books',views:9800,add_to_cart:3900,purchases:2340,view_to_cart_pct:39.8,cart_to_purchase_pct:60.0},
+    {category:'Sports',views:7200,add_to_cart:2160,purchases:1080,view_to_cart_pct:30.0,cart_to_purchase_pct:50.0},
+    {category:'Beauty',views:5400,add_to_cart:2000,purchases:900,view_to_cart_pct:37.0,cart_to_purchase_pct:45.0},
+  ],
+  cohort: generateDemoCohort(),
+};
+
+function generateDemoCohort() {
+  const cohorts = ['2023-10','2023-11','2023-12','2024-01','2024-02','2024-03','2024-04','2024-05'];
+  const rows = [];
+  cohorts.forEach((c, ci) => {
+    const maxPeriods = cohorts.length - ci;
+    for (let p = 0; p < maxPeriods; p++) {
+      const base = 30 + ci * 3;
+      const ret = p === 0 ? 100 : Math.max(10, 100 - p * (12 + Math.random()*5));
+      rows.push({ cohort: c, period: p, active_customers: Math.round(base * ret/100), retention_pct: parseFloat(ret.toFixed(1)) });
+    }
+  });
+  return rows;
+}
+
+async function fetchAPI(path) {
+  if (demoMode) return getDemoData(path);
+  try {
+    const r = await fetch(BASE + path, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch(e) {
+    throw e;
+  }
+}
+
+function getDemoData(path) {
+  if (path.startsWith('/kpis')) return DEMO.kpis;
+  if (path.startsWith('/revenue/monthly')) return DEMO.monthly;
+  if (path.startsWith('/revenue/by-category')) return DEMO.categories;
+  if (path.startsWith('/products/top')) return DEMO.products.slice(0,15);
+  if (path.startsWith('/customers/ltv')) return DEMO.customers;
+  if (path.startsWith('/orders/status')) return DEMO.orders;
+  if (path.startsWith('/customers/cohort')) return DEMO.cohort;
+  if (path.startsWith('/funnel')) return DEMO.funnel;
+  return [];
+}
+
+function fmt(n) { return n == null ? '—' : n.toLocaleString(undefined,{maximumFractionDigits:0}); }
+function fmtMoney(n) { return n == null ? '—' : '$' + n.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtPct(n) { return n == null ? '—' : n.toFixed(1) + '%'; }
+
+const COLORS = ['#6c63ff','#00d4aa','#ffa94d','#ff6b6b','#74c0fc','#a9e34b','#f783ac','#69db7c'];
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+async function loadOverview() {
+  const year = currentYear;
+  try {
+    const [kpis, monthly, cats, orders, funnel] = await Promise.all([
+      fetchAPI(`/kpis?year=${year}`),
+      fetchAPI(`/revenue/monthly?year=${year}&compare_year=${year-1}`),
+      fetchAPI(`/revenue/by-category?year=${year}`),
+      fetchAPI(`/orders/status?year=${year}`),
+      fetchAPI(`/funnel/by-category?year=${year}`),
+    ]);
+    renderKPIs(kpis);
+    renderRevenueChart('revenueChart', monthly);
+    renderCategoryChart('catChart', cats);
+    renderStatusChart('statusChart', 'statusLegend', orders);
+    renderFunnelMini(funnel);
+  } catch(e) {
+    document.getElementById('kpiGrid').innerHTML = `<div class="loading-state" style="grid-column:1/-1; color:var(--accent3);">Failed to load data — check API connection or use Demo Data in Settings</div>`;
+  }
+}
+
+function renderKPIs(d) {
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">${fmtMoney(d.total_revenue)}</div>
+      <div class="kpi-sub">${currentYear} fiscal year</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Orders</div>
+      <div class="kpi-value">${fmt(d.total_orders)}</div>
+      <div class="kpi-sub">Excluding cancelled</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Order Value</div>
+      <div class="kpi-value">${fmtMoney(d.avg_order_value)}</div>
+      <div class="kpi-sub">Per order</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cancellation Rate</div>
+      <div class="kpi-value" style="color: var(--accent3);">${fmtPct(d.cancellation_rate_pct)}</div>
+      <div class="kpi-sub">Of all orders</div>
+    </div>
+  `;
+}
+
+function renderRevenueChart(id, data) {
+  destroyChart(id);
+  const labels = data.map(d => d.month.slice(5));
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Current', data: data.map(d=>d.revenue), borderColor: '#6c63ff', backgroundColor: 'rgba(108,99,255,0.08)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#6c63ff' },
+        { label: 'Previous', data: data.map(d=>d.prev_revenue), borderColor: '#444', backgroundColor: 'transparent', borderDash: [4,4], tension: 0.4, pointRadius: 0 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtMoney(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7080', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7080', font: { size: 11 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } }
+      }
+    }
+  });
+}
+
+function renderCategoryChart(id, data) {
+  destroyChart(id);
+  const wrap = id === 'catChart' ? document.getElementById('catWrap') : null;
+  if (wrap) wrap.style.height = Math.max(200, data.length * 32) + 'px';
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.category),
+      datasets: [{ label: 'Revenue', data: data.map(d=>d.net_revenue), backgroundColor: COLORS, borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtMoney(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7080', font:{size:11}, callback: v => '$'+(v/1000).toFixed(0)+'k' } },
+        y: { grid: { display:false }, ticks: { color: '#aaa', font:{size:11} } }
+      }
+    }
+  });
+}
+
+function renderStatusChart(id, legendId, data) {
+  destroyChart(id);
+  const colors = { delivered:'#6c63ff', shipped:'#00d4aa', pending:'#ffa94d', cancelled:'#ff6b6b' };
+  const bg = data.map(d => colors[d.status] || '#888');
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'doughnut',
+    data: { labels: data.map(d=>d.status), datasets: [{ data: data.map(d=>d.order_count), backgroundColor: bg, borderWidth: 0, hoverOffset: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} orders (${fmtPct(data[ctx.dataIndex].pct_of_orders)})` } } }
+    }
+  });
+  document.getElementById(legendId).innerHTML = data.map((d,i) =>
+    `<span style="display:inline-flex; align-items:center; gap:5px; margin-right:12px; margin-bottom:4px;">
+      <span style="width:9px;height:9px;border-radius:2px;background:${bg[i]};display:inline-block;"></span>
+      <span style="color:var(--muted);">${d.status} ${fmtPct(d.pct_of_orders)}</span>
+    </span>`
+  ).join('');
+}
+
+function renderFunnelMini(data) {
+  const el = document.getElementById('funnelMini');
+  el.innerHTML = data.slice(0,5).map(d => `
+    <div class="funnel-bar">
+      <div class="funnel-row">
+        <span class="funnel-label">${d.category}</span>
+        <span class="funnel-pct">${fmtPct(d.view_to_cart_pct)} → ${fmtPct(d.cart_to_purchase_pct)}</span>
+      </div>
+      <div class="funnel-track">
+        <div class="funnel-fill" style="width:${d.view_to_cart_pct}%; background: linear-gradient(90deg, #6c63ff, #00d4aa);"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadRevenue() {
+  try {
+    const data = await fetchAPI(`/revenue/monthly?year=${currentYear}&compare_year=${currentYear-1}`);
+    destroyChart('revDetailChart');
+    charts['revDetailChart'] = new Chart(document.getElementById('revDetailChart'), {
+      type: 'bar',
+      data: {
+        labels: data.map(d=>d.month.slice(5)),
+        datasets: [
+          { label: 'Revenue', data: data.map(d=>d.revenue), backgroundColor: 'rgba(108,99,255,0.7)', borderRadius: 4, yAxisID: 'y' },
+          { label: 'YoY Growth %', data: data.map(d=>d.yoy_growth_pct), type: 'line', borderColor: '#00d4aa', backgroundColor: 'transparent', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#00d4aa', yAxisID: 'y1' },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7080', font:{size:11} } },
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7080', font:{size:11}, callback: v => '$'+(v/1000).toFixed(0)+'k' } },
+          y1: { position: 'right', grid: { display:false }, ticks: { color: '#00d4aa', font:{size:11}, callback: v => v+'%' } }
+        }
+      }
+    });
+    const tbody = document.getElementById('revTableBody');
+    tbody.innerHTML = data.map(d => {
+      const grow = d.yoy_growth_pct;
+      const growColor = grow > 0 ? 'var(--accent2)' : 'var(--accent3)';
+      return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;">${d.month}</td>
+        <td>${fmtMoney(d.revenue)}</td>
+        <td style="color:var(--muted);">${fmtMoney(d.prev_revenue)}</td>
+        <td style="color:${growColor}; font-family:'JetBrains Mono',monospace;">${grow != null ? (grow>0?'+':'')+grow.toFixed(1)+'%' : '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('revTableBody').innerHTML = `<tr><td colspan="4" style="color:var(--accent3);text-align:center;padding:20px;">Failed to load</td></tr>`;
+  }
+}
+
+async function loadProducts() {
+  try {
+    const data = await fetchAPI(`/products/top?year=${currentYear}&limit=15`);
+    const cats = [...new Set(data.map(d=>d.category))];
+    const catSel = document.getElementById('prodCatFilter');
+    catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+    renderProductTable(data);
+    renderProductCharts(data);
+    catSel.onchange = () => {
+      const sel = catSel.value;
+      renderProductTable(sel ? data.filter(d=>d.category===sel) : data);
+    };
+  } catch(e) {}
+}
+
+function renderProductTable(data) {
+  document.getElementById('prodTableBody').innerHTML = data.map((d,i) => {
+    const marginColor = d.margin_pct > 50 ? 'var(--accent2)' : d.margin_pct > 35 ? 'var(--accent4)' : 'var(--accent3)';
+    return `<tr>
+      <td style="color:var(--muted);">${i+1}</td>
+      <td style="font-weight:500;">${d.name}</td>
+      <td><span class="badge badge-blue">${d.category}</span></td>
+      <td>${fmt(d.units_sold)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;">${fmtMoney(d.net_revenue)}</td>
+      <td style="color:${marginColor}; font-family:'JetBrains Mono',monospace;">${fmtPct(d.margin_pct)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderProductCharts(data) {
+  const top8 = data.slice(0,8);
+  destroyChart('prodChart');
+  const prodWrap = document.getElementById('prodWrap');
+  prodWrap.style.height = Math.max(200, top8.length * 36 + 40) + 'px';
+  charts['prodChart'] = new Chart(document.getElementById('prodChart'), {
+    type: 'bar',
+    data: {
+      labels: top8.map(d => d.name.length > 18 ? d.name.slice(0,18)+'…' : d.name),
+      datasets: [{ data: top8.map(d=>d.net_revenue), backgroundColor: COLORS, borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>fmtMoney(ctx.raw)}} },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7080',font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}},
+        y:{grid:{display:false},ticks:{color:'#aaa',font:{size:11}}}
+      }
+    }
+  });
+  destroyChart('bubbleChart');
+  charts['bubbleChart'] = new Chart(document.getElementById('bubbleChart'), {
+    type: 'bubble',
+    data: {
+      datasets: top8.map((d,i) => ({
+        label: d.name,
+        data: [{ x: d.net_revenue/1000, y: d.margin_pct, r: Math.max(6, Math.sqrt(d.units_sold)/3) }],
+        backgroundColor: COLORS[i] + 'bb',
+        borderColor: COLORS[i],
+      }))
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: $${ctx.raw.x.toFixed(0)}k rev, ${ctx.raw.y.toFixed(1)}% margin`}} },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7080',font:{size:11},callback:v=>'$'+v+'k'},title:{display:true,text:'Revenue (k)',color:'#6b7080',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7080',font:{size:11},callback:v=>v+'%'},title:{display:true,text:'Margin %',color:'#6b7080',font:{size:11}},min:20,max:80}
+      }
+    }
+  });
+}
+
+async function loadCustomers() {
+  try {
+    const data = await fetchAPI('/customers/ltv?limit=20');
+    const segs = [...new Set(data.map(d=>d.segment))];
+    const segSel = document.getElementById('segFilter');
+    segSel.innerHTML = '<option value="">All segments</option>' + segs.map(s=>`<option>${s}</option>`).join('');
+    renderCustomerTable(data);
+    renderCustomerCharts(data);
+    segSel.onchange = () => {
+      const sel = segSel.value;
+      renderCustomerTable(sel ? data.filter(d=>d.segment===sel) : data);
+    };
+  } catch(e) {}
+}
+
+function renderCustomerTable(data) {
+  document.getElementById('custTableBody').innerHTML = data.map(d => {
+    const segColor = d.segment==='VIP' ? 'badge-blue' : d.segment==='High Value' ? 'badge-green' : 'badge-amber';
+    return `<tr>
+      <td style="font-weight:500;">${d.name}</td>
+      <td><span class="badge ${segColor}">${d.segment}</span></td>
+      <td style="color:var(--muted);">${d.country}</td>
+      <td>${d.total_orders}</td>
+      <td style="font-family:'JetBrains Mono',monospace;">${fmtMoney(d.lifetime_value)}</td>
+      <td style="color:var(--muted);">${d.days_since_last_order}d ago</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCustomerCharts(data) {
+  const top10 = data.slice(0,10);
+  destroyChart('ltvChart');
+  const ltvWrap = document.getElementById('ltvWrap');
+  ltvWrap.style.height = Math.max(200, top10.length * 28 + 40) + 'px';
+  charts['ltvChart'] = new Chart(document.getElementById('ltvChart'), {
+    type:'bar',
+    data:{
+      labels: top10.map(d=>d.name.split(' ')[0]),
+      datasets:[{data:top10.map(d=>d.lifetime_value), backgroundColor:COLORS.map(c=>c+'bb'), borderRadius:4, borderSkipped:false}]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtMoney(ctx.raw)}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7080',font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}},
+        y:{grid:{display:false},ticks:{color:'#aaa',font:{size:11}}}
+      }
+    }
+  });
+  const segMap = {};
+  data.forEach(d => { segMap[d.segment] = (segMap[d.segment]||0) + d.lifetime_value; });
+  const segs = Object.entries(segMap);
+  const segColors = ['#6c63ff','#00d4aa','#ffa94d','#ff6b6b'];
+  destroyChart('segChart');
+  charts['segChart'] = new Chart(document.getElementById('segChart'), {
+    type:'doughnut',
+    data:{labels:segs.map(s=>s[0]),datasets:[{data:segs.map(s=>s[1]),backgroundColor:segColors.slice(0,segs.length),borderWidth:0,hoverOffset:6}]},
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmtMoney(ctx.raw)}`}}}
+    }
+  });
+  document.getElementById('segLegend').innerHTML = segs.map((s,i)=>
+    `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;margin-bottom:4px;">
+      <span style="width:9px;height:9px;border-radius:2px;background:${segColors[i]};display:inline-block;"></span>
+      <span style="color:var(--muted);">${s[0]}</span>
+    </span>`
+  ).join('');
+}
+
+async function loadFunnel() {
+  try {
+    const data = await fetchAPI(`/funnel/by-category?year=${currentYear}`);
+    const labels = data.map(d=>d.category);
+    destroyChart('funnelChart1');
+    const w1 = document.getElementById('funnelChart1Wrap');
+    w1.style.height = Math.max(200, data.length * 36 + 40) + 'px';
+    charts['funnelChart1'] = new Chart(document.getElementById('funnelChart1'), {
+      type:'bar',
+      data:{labels,datasets:[{data:data.map(d=>d.view_to_cart_pct),backgroundColor:COLORS,borderRadius:4,borderSkipped:false}]},
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtPct(ctx.raw)}}},
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7080',font:{size:11},callback:v=>v+'%'},max:60},
+          y:{grid:{display:false},ticks:{color:'#aaa',font:{size:11}}}
+        }
+      }
+    });
+    destroyChart('funnelChart2');
+    const w2 = document.getElementById('funnelChart2Wrap');
+    w2.style.height = Math.max(200, data.length * 36 + 40) + 'px';
+    charts['funnelChart2'] = new Chart(document.getElementById('funnelChart2'), {
+      type:'bar',
+      data:{labels,datasets:[{data:data.map(d=>d.cart_to_purchase_pct),backgroundColor:COLORS.slice(0).reverse(),borderRadius:4,borderSkipped:false}]},
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtPct(ctx.raw)}}},
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7080',font:{size:11},callback:v=>v+'%'},max:80},
+          y:{grid:{display:false},ticks:{color:'#aaa',font:{size:11}}}
+        }
+      }
+    });
+    document.getElementById('funnelTableBody').innerHTML = data.map(d => `<tr>
+      <td style="font-weight:500;">${d.category}</td>
+      <td>${fmt(d.views)}</td>
+      <td>${fmt(d.add_to_cart)}</td>
+      <td>${fmt(d.purchases)}</td>
+      <td style="color:var(--accent); font-family:'JetBrains Mono',monospace;">${fmtPct(d.view_to_cart_pct)}</td>
+      <td style="color:var(--accent2); font-family:'JetBrains Mono',monospace;">${fmtPct(d.cart_to_purchase_pct)}</td>
+    </tr>`).join('');
+  } catch(e) {}
+}
+
+async function loadCohort() {
+  try {
+    const data = await fetchAPI('/customers/cohort-retention');
+    const cohorts = [...new Set(data.map(d=>d.cohort))].sort();
+    const maxPeriod = Math.max(...data.map(d=>d.period));
+    const periods = Array.from({length:maxPeriod+1},(_,i)=>i);
+    const map = {};
+    data.forEach(d => { if(!map[d.cohort]) map[d.cohort]={}; map[d.cohort][d.period]=d.retention_pct; });
+
+    function heatColor(pct) {
+      if (pct == null) return 'transparent';
+      if (pct >= 80) return 'rgba(108,99,255,0.85)';
+      if (pct >= 60) return 'rgba(108,99,255,0.6)';
+      if (pct >= 40) return 'rgba(108,99,255,0.35)';
+      if (pct >= 20) return 'rgba(108,99,255,0.18)';
+      return 'rgba(108,99,255,0.07)';
+    }
+
+    const thead = `<tr><th>Cohort</th>${periods.map(p=>`<th>M+${p}</th>`).join('')}</tr>`;
+    const tbody = cohorts.map(c => `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;white-space:nowrap;">${c}</td>
+      ${periods.map(p => {
+        const v = map[c] && map[c][p] != null ? map[c][p] : null;
+        return `<td style="background:${heatColor(v)};color:${v!=null?'var(--text)':'var(--muted)'};border-radius:4px;">${v!=null?v.toFixed(0)+'%':'—'}</td>`;
+      }).join('')}
+    </tr>`).join('');
+
+    document.getElementById('cohortWrap').innerHTML = `
+      <table class="cohort-table" style="border-collapse:separate;border-spacing:3px;">
+        <thead style="color:var(--muted);">${thead}</thead>
+        <tbody>${tbody}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('cohortWrap').innerHTML = `<div class="loading-state" style="color:var(--accent3);">Failed to load cohort data</div>`;
+  }
+}
+
+// Navigation
+const pages = {
+  overview: { title: 'Dashboard', load: loadOverview },
+  revenue: { title: 'Revenue', load: loadRevenue },
+  products: { title: 'Products', load: loadProducts },
+  customers: { title: 'Customers', load: loadCustomers },
+  funnel: { title: 'Conversion Funnel', load: loadFunnel },
+  cohort: { title: 'Cohort Retention', load: loadCohort },
+  settings: { title: 'Settings', load: () => {} },
+};
+let currentPage = 'overview';
+
+document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  item.addEventListener('click', () => {
+    const p = item.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
+    document.getElementById('page-' + p).classList.add('active');
+    document.getElementById('pageTitle').textContent = pages[p].title;
+    currentPage = p;
+    pages[p].load();
+  });
+});
+
+document.getElementById('yearSelect').addEventListener('change', e => {
+  currentYear = parseInt(e.target.value);
+  if (pages[currentPage]) pages[currentPage].load();
+});
+
+// Settings
+function applyUrl() {
+  BASE = document.getElementById('baseUrlInput').value.replace(/\/$/, '');
+  demoMode = false;
+  document.getElementById('connBanner').classList.remove('show');
+  document.getElementById('connSuccess').classList.remove('show');
+  fetch(BASE + '/health', { signal: AbortSignal.timeout(4000) })
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('connSuccess').textContent = `Connected! DB: ${d.db}`;
+      document.getElementById('connSuccess').classList.add('show');
+      setStatus(true);
+    })
+    .catch(() => {
+      document.getElementById('connBanner').textContent = `Could not connect to ${BASE}. Make sure uvicorn main:app --reload is running.`;
+      document.getElementById('connBanner').classList.add('show');
+      setStatus(false);
+    });
+}
+
+function testDemo() {
+  demoMode = true;
+  document.getElementById('connSuccess').textContent = 'Using demo data — no live API connection required.';
+  document.getElementById('connSuccess').classList.add('show');
+  document.getElementById('connBanner').classList.remove('show');
+  setStatus(true, 'Demo mode');
+  if (currentPage !== 'settings') pages[currentPage].load();
+}
+
+function setStatus(ok, label) {
+  const badge = document.getElementById('statusBadge');
+  const dot = badge.querySelector('.status-dot');
+  document.getElementById('statusText').textContent = label || (ok ? 'Connected' : 'Disconnected');
+  dot.style.background = ok ? 'var(--accent2)' : 'var(--accent3)';
+  badge.style.background = ok ? 'rgba(0,212,170,0.1)' : 'rgba(255,107,107,0.1)';
+  badge.style.color = ok ? 'var(--accent2)' : 'var(--accent3)';
+}
+
+// Init — try live API, fall back to demo
+async function init() {
+  try {
+    const r = await fetch(BASE + '/health', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) { setStatus(true); }
+    else throw new Error();
+  } catch {
+    demoMode = true;
+    setStatus(true, 'Demo data');
+  }
+  loadOverview();
+}
+
+init();
+</script>
+</body>
+</html>

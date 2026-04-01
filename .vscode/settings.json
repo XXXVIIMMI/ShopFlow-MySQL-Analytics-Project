@@ -1,0 +1,27 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "terminal.integrated.env.linux": {
+    "WATCHFILES_FORCE_POLLING": "true"
+  },
+  "files.watcherExclude": {
+    "**/.venv/**": true,
+    "**/__pycache__/**": true
+  },
+  "search.exclude": {
+    "**/.venv/**": true
+  },
+  "[sql]": {
+    "editor.defaultFormatter": "mtxr.sqltools"
+  },
+  "sqltools.connections": [
+    {
+      "name": "ShopFlow MySQL",
+      "driver": "MySQL",
+      "server": "localhost",
+      "port": 3306,
+      "database": "shopflow_db",
+      "username": "root"
+    }
+  ]
+}
